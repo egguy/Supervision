@@ -42,6 +42,7 @@ import os
 import json
 import re
 
+import zmq
 from functions.ServerZMQ import ServerZMQREP
 from functions.ClientZMQ import ClientZMQREQ
 
@@ -51,7 +52,7 @@ regex_name = r"^[0-9a-zA-Z -_]{4,20}$"
 # get client ZMQ configuration
 
 # get clientZMQ config
-clientZMQ_config = {
+config = {
     "probe_client": {
         "name": os.environ.get("PROBE_NAME", None),
         "address": os.environ.get("PROBE_IP", None),
@@ -63,23 +64,27 @@ clientZMQ_config = {
         "port": int(os.environ.get("SERVER_PORT", 0))
     }
 }
+
+# overwrite with an external json config file
 try:
     with open('config/clientZMQ.json', 'r') as json_data_file:
-        clientZMQ_config.update(json.load(json_data_file))
+        config.update(json.load(json_data_file))
 except Exception as error:
     pass
+
+# do sanity checks
 try:
-    if not re.match(regex_name, clientZMQ_config["probe_client"]["name"]) \
-            or not (1 <= clientZMQ_config["probe_client"]["port"] <= 65535) \
-            or not (1 <= clientZMQ_config["probe_server"]["port"] <= 65535):
+    if not re.match(regex_name, config["probe_client"]["name"]) \
+            or not (1 <= config["probe_client"]["port"] <= 65535) \
+            or not (1 <= config["probe_server"]["port"] <= 65535):
         raise Exception('clientZMQ.json wrong format')
 except Exception as error:
     print('Caught this error: ' + repr(error))
     exit()
 
-serverZMQ = ServerZMQREP(clientZMQ_config["probe_client"]["port"])
-serverZMQ.start()
-clientZMQ = ClientZMQREQ(clientZMQ_config["probe_client"]["name"], clientZMQ_config["probe_client"]["address"],
-                         clientZMQ_config["probe_client"]["port"], clientZMQ_config["probe_server"]["address"],
-                         clientZMQ_config["probe_server"]["port"])
-clientZMQ.start()
+
+context = zmq.Context()
+worker = context.socket(zmq.DEALER)
+worker.setsockopt(zmq.IDENTITY, config["probe_client"]["name"])
+worker.connect("tcp://{}:{}:5556".format(config['probe_server']['address'], config['probe_server']['port']))
+
