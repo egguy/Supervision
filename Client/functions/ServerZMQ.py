@@ -51,18 +51,15 @@ logger = logging.getLogger(__name__)
 
 
 class ServerZMQREP (threading.Thread):
-    def __init__(self, port):
+    def __init__(self, context):
         threading.Thread.__init__(self)
         self.message = None
-        self.port = port
-        self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.REP)
+        self.context = context
 
     def run(self):
-        self.socket.bind('tcp://*:{}'.format(self.port))
-        logger.info("Server started on port --> %s", self.port)
+        logger.info("Starting server")
         while True:
-            self.message = self.socket.recv_json()
+            self.message = self.context.recv_json()
             logger.info("Time: %s\n Request: %s\n", datetime.datetime.now().replace(microsecond=0), self.message)
             if self.message["type"] == "test":
                 self.start_test()
@@ -95,7 +92,7 @@ class ServerZMQREP (threading.Thread):
         logger.info("Ping: %s\n Jitter: %s\n Packet loss:%s\n Speedtest:%s\n MOS:%s\n", ping, jitter, packet_loss,
                     speedtest, mos)
 
-        self.socket.send_json({
+        self.context.send_json({
                                 "type": "result",
                                 "id": self.message["id"],
                                 "probe_name": self.message["probe_name"],

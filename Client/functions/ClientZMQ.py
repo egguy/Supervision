@@ -49,28 +49,16 @@ logger = logging.getLogger(__name__)
 
 
 class ClientZMQREQ (threading.Thread):
-    def __init__(self, name, client_address, client_port, server_address, server_port):
+    def __init__(self, context):
         threading.Thread.__init__(self)
-        self.name = name
-        self.client_address = client_address
-        self.client_port = client_port
-        self.server_address = server_address
-        self.server_port = server_port
         self.message = None
-        self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.REQ)
+        self.context = context
 
     def run(self):
-        self.socket.connect("tcp://%s:%s" % (self.server_address, self.server_port))
-        logger.info("Client connected to --> %s:%s", self.server_address, self.server_port)
+        logger.info("Starting client")
         while True:
-            self.send_hello()
+            logger.debug("Sending keep alive")
+            self.context.send_json({"type": "hello", "name": self.name, })
             time.sleep(5)
 
-    def send_data(self, json_data):
-        self.socket.send_json(json_data)
-        self.message = self.socket.recv_json()
-        logger.info("Time: %s\n Request: %s\n", datetime.now().replace(microsecond=0), self.message)
 
-    def send_hello(self):
-        self.send_data({"type": "hello", "name": self.name, "address": self.client_address, "port": self.client_port})
