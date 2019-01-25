@@ -84,8 +84,8 @@ worker = context.socket(zmq.DEALER)
 worker.setsockopt(zmq.IDENTITY, config["name"].encode("utf-8"))
 worker.connect("tcp://{}:{}".format(config['probe_server']['address'], config['probe_server']['port']))
 
-client = ClientZMQREQ(worker)
-client.start()
+# client = ClientZMQREQ(worker)
+# client.start()
 server = ServerZMQREP(worker)
 server.start()
 

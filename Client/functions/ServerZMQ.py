@@ -51,18 +51,27 @@ logger = logging.getLogger(__name__)
 
 
 class ServerZMQREP (threading.Thread):
-    def __init__(self, context):
+    def __init__(self, socket, timeout=5):
         threading.Thread.__init__(self)
         self.message = None
-        self.context = context
+        self.socket = socket
+        self.poller = zmq.Poller()
+        self.poller.register(socket, zmq.POLLIN)
+        self.timeout = timeout
+
 
     def run(self):
         logger.info("Starting server")
         while True:
-            self.message = self.context.recv_json()
-            logger.info("Time: %s\n Request: %s\n", datetime.datetime.now().replace(microsecond=0), self.message)
-            if self.message["type"] == "test":
-                self.start_test()
+            print("COIN")
+            if self.poller.poll(self.timeout * 1000):
+                self.message = self.socket.recv_json()
+                logger.info("Time: %s\n Request: %s\n", datetime.datetime.now().replace(microsecond=0), self.message)
+                if self.message["type"] == "test":
+                    self.start_test()
+            else:
+                self.socket.send_json({"type": "hello", "name": self.name, })
+
 
     def start_test(self):
         packet_number = self.message["packet_number"]  # Number of packet sent
@@ -92,10 +101,10 @@ class ServerZMQREP (threading.Thread):
         logger.info("Ping: %s\n Jitter: %s\n Packet loss:%s\n Speedtest:%s\n MOS:%s\n", ping, jitter, packet_loss,
                     speedtest, mos)
 
-        self.context.send_json({
+        self.socket.send_json({
                                 "type": "result",
                                 "id": self.message["id"],
-                                "probe_name": self.message["probe_name"],
+                                # "probe_name": self.message["probe_name"],
                                 "ping": ping,
                                 "jitter": jitter,
                                 "packet_loss": packet_loss,
